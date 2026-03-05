@@ -1,2 +1,2 @@
 # R-Programming
-Statistically analyzing and visualizing India's inflation data over the years 
+This assignment explores key statistical concepts using the R programming language. By applying techniques such as data summarization, visualization, and hypothesis testing, it aims to build practical skills in analysing and interpreting data with R.
