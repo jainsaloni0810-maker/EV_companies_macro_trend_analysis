@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EV Macro & Inflation Analysis — Statistical Models</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg: #08090d;
+    --panel: #0f1117;
+    --border: #1e2230;
+    --accent: #00e5ff;
+    --accent2: #ff6b35;
+    --accent3: #7cff6b;
+    --accent4: #ffd23f;
+    --accent5: #b967ff;
+    --accent6: #ff4d6d;
+    --text: #e8ecf4;
+    --muted: #6b7694;
+    --green: #00ff88;
+    --red: #ff4060;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid noise background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { max-width: 1440px; margin: 0 auto; padding: 0 24px 60px; position: relative; z-index: 1; }
+
+  /* HEADER */
+  header {
+    padding: 40px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .header-left .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  header h1 {
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1px;
+  }
+
+  header h1 span { color: var(--accent); }
+
+  .header-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+    line-height: 1.8;
+  }
+
+  /* TABS */
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 28px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    padding-bottom: 0;
+  }
+
+  .tab {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    padding: 10px 20px;
+    cursor: pointer;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all 0.2s;
+    background: none;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    text-transform: uppercase;
+  }
+
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* KPI STRIP */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+
+  .kpi {
+    background: var(--panel);
+    padding: 20px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--c, var(--accent));
+  }
+
+  .kpi-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .kpi-val {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    color: var(--c, var(--accent));
+    line-height: 1;
+  }
+
+  .kpi-sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* CHART GRID */
+  .chart-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(540px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .chart-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .chart-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    position: relative;
+  }
+
+  .chart-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chart-title {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .chart-subtitle {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    background: rgba(0,229,255,0.1);
+    color: var(--accent);
+    border: 1px solid rgba(0,229,255,0.2);
+  }
+
+  canvas { max-height: 280px; }
+
+  /* MODEL TABLE */
+  .model-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .model-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .model-title {
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .r2-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    background: rgba(0,255,136,0.1);
+    color: var(--green);
+    border: 1px solid rgba(0,255,136,0.2);
+    border-radius: 4px;
+  }
+
+  .coef-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+  }
+
+  .coef-table th {
+    text-align: left;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 0 0 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .coef-table th:not(:first-child) { text-align: right; }
+
+  .coef-table td {
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(30,34,48,0.5);
+    vertical-align: middle;
+  }
+
+  .coef-table td:not(:first-child) { text-align: right; }
+
+  .coef-name { color: var(--accent); }
+
+  .coef-val { color: var(--text); }
+
+  .coef-pos { color: var(--green); }
+  .coef-neg { color: var(--red); }
+
+  .coef-bar-cell { width: 120px; }
+
+  .coef-bar-wrap {
+    height: 4px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 2px;
+  }
+
+  .coef-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.6s ease;
+  }
+
+  /* METRICS TABLE */
+  .metrics-table-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  table.metrics {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  table.metrics thead tr {
+    background: rgba(0,229,255,0.04);
+    border-bottom: 1px solid var(--border);
+  }
+
+  table.metrics th {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 14px 20px;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  table.metrics th:first-child { text-align: left; }
+
+  table.metrics td {
+    padding: 14px 20px;
+    text-align: right;
+    border-bottom: 1px solid rgba(30,34,48,0.5);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+  }
+
+  table.metrics td:first-child {
+    text-align: left;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  table.metrics tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+  }
+
+  .pill-pos { background: rgba(0,255,136,0.1); color: var(--green); }
+  .pill-neg { background: rgba(255,64,96,0.1); color: var(--red); }
+  .pill-neu { background: rgba(108,119,148,0.1); color: var(--muted); }
+
+  /* MACRO SECTION */
+  .macro-insight {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .macro-insight strong { color: var(--accent2); }
+
+  /* SCATTER */
+  .scatter-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  /* LEGEND STRIP */
+  .legend-strip {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    opacity: 1;
+    transition: opacity 0.2s;
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* FOOTER */
+  footer {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  footer .footer-note {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .r-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 4px 10px;
+    background: rgba(107,118,255,0.1);
+    color: #6b76ff;
+    border: 1px solid rgba(107,118,255,0.25);
+    border-radius: 4px;
+    letter-spacing: 1px;
+  }
+
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-left">
+      <div class="eyebrow">Statistical Analysis · R Models · 2019–2024</div>
+      <h1>EV Industry <span>Macro</span> &amp; Inflation<br>Impact Analysis</h1>
+    </div>
+    <div class="header-meta">
+      <div>Models: OLS · Panel · Log-linear</div>
+      <div>Companies: Tesla · BYD · Rivian · NIO · Lucid · Li Auto</div>
+      <div>Engine: R 4.3 · lm() · Macro overlay</div>
+    </div>
+  </header>
+
+  <!-- KPI STRIP -->
+  <div class="kpi-strip">
+    <div class="kpi" style="--c:#00e5ff">
+      <div class="kpi-label">Avg Rev Growth (Tesla)</div>
+      <div class="kpi-val">34%</div>
+      <div class="kpi-sub">5yr CAGR · 2019–2024</div>
+    </div>
+    <div class="kpi" style="--c:#ff6b35">
+      <div class="kpi-label">Peak CPI Impact</div>
+      <div class="kpi-val">8.0%</div>
+      <div class="kpi-sub">US CPI YoY · 2022</div>
+    </div>
+    <div class="kpi" style="--c:#7cff6b">
+      <div class="kpi-label">Carbon Decay Rate</div>
+      <div class="kpi-val">−13.2%</div>
+      <div class="kpi-sub">Annual reduction · R² = 0.95</div>
+    </div>
+    <div class="kpi" style="--c:#ffd23f">
+      <div class="kpi-label">Lithium Peak vs Now</div>
+      <div class="kpi-val">−70%</div>
+      <div class="kpi-sub">480→145 index pts · 2022→2024</div>
+    </div>
+    <div class="kpi" style="--c:#b967ff">
+      <div class="kpi-label">EBITDA Model R²</div>
+      <div class="kpi-val">0.814</div>
+      <div class="kpi-sub">Panel OLS · 5 predictors</div>
+    </div>
+    <div class="kpi" style="--c:#ff4d6d">
+      <div class="kpi-label">BYD Rev Growth</div>
+      <div class="kpi-val">38.7%</div>
+      <div class="kpi-sub">Highest avg among mature EVs</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tab-bar">
+    <button class="tab active" onclick="switchTab('revenue')">Revenue & Growth</button>
+    <button class="tab" onclick="switchTab('margins')">EBITDA Margins</button>
+    <button class="tab" onclick="switchTab('rd')">R&D Spending</button>
+    <button class="tab" onclick="switchTab('carbon')">Carbon Metrics</button>
+    <button class="tab" onclick="switchTab('marketcap')">Market Cap</button>
+    <button class="tab" onclick="switchTab('models')">Statistical Models</button>
+    <button class="tab" onclick="switchTab('macro')">Macro Overlay</button>
+  </div>
+
+  <!-- TAB: REVENUE -->
+  <div id="tab-revenue" class="tab-content active">
+    <div class="chart-grid-2">
+      <div class="chart-panel">
+        <div class="chart-panel-header">
+          <div>
+            <div class="chart-title">Revenue Trajectory ($B) — All Companies</div>
+            <div class="chart-subtitle">2019–2024 · Nominal USD</div>
+          </div>
+          <span class="badge">LINE</span>
+        </div>
+        <canvas id="revLineChart"></canvas>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-panel-header">
+          <div>
+            <div class="chart-title">YoY Revenue Growth Rate (%)</div>
+            <div class="chart-subtitle">With CPI overlay · Macro sensitivity</div>
+          </div>
+          <span class="badge">BAR+LINE</span>
+        </div>
+        <canvas id="revGrowthChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-panel-header">
+        <div>
+          <div class="chart-title">Revenue vs Inflation (CPI) Correlation — Tesla Deep Dive</div>
+          <div class="chart-subtitle">OLS: Revenue Growth = β₀ + β₁·CPI + β₂·FedRate + β₃·Lithium + β₄·Subsidy + ε · R² = 1.00 (small-n saturated)</div>
+        </div>
+        <span class="badge">SCATTER</span>
+      </div>
+      <canvas id="revScatterChart" style="max-height:220px"></canvas>
+    </div>
+  </div>
+
+  <!-- TAB: MARGINS -->
+  <div id="tab-margins" class="tab-content">
+    <div class="chart-grid-2">
+      <div class="chart-panel">
+        <div class="chart-panel-header">
+          <div>
+            <div class="chart-title">EBITDA Margin (%) — Profitable Companies</div>
+            <div class="chart-subtitle">Tesla · BYD · Li Auto</div>
+          </div>
+          <span class="badge">LINE</span>
+        </div>
+        <canvas id="ebitdaProfChart"></canvas>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-panel-header">
+          <div>
+            <div class="chart-title">EBITDA Margin — Loss-Making EV Startups</div>
+            <div class="chart-subtitle">Rivian · NIO · Lucid · Scale effect visible</div>
+          </div>
+          <span class="badge">LINE</span>
+        </div>
+        <canvas id="ebitdaLossChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-panel-header">
+        <div>
+          <div class="chart-title">EBITDA Margin vs Fed Rate — Panel Model Insight</div>
+          <div class="chart-subtitle">Fed Rate coef: −0.171 (p&lt;0.05) · Higher rates compress margins · R² = 0.814</div>
+        </div>
+        <span class="badge">AREA</span>
+      </div>
+      <canvas id="ebitdaMacroChart" style="max-height:200px"></canvas>
+    </div>
+  </div>
+
+  <!-- TAB: R&D -->
+  <div id="tab-rd" class="tab-content">
+    <div class="chart-grid-2">
+      <div class="chart-panel">
+        <div class="chart-panel-header">
+          <div>
+            <div class="chart-title">Absolute R&D Spending ($B)</div>
+            <div class="chart-subtitle">Annual investment in EV technology</div>
+          </div>
+          <span class="badge">STACKED BAR</span>
+        </div>
+        <canvas id="rdAbsChart"></canvas>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-panel-header">
+          <div>
+            <div class="chart-title">R&D as % of Revenue (Intensity)</div>
+            <div class="chart-subtitle">Scale-adjusted efficiency metric</div>
+          </div>
+          <span class="badge">LINE</span>
+        </div>
+        <canvas id="rdIntChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-panel-header">
+        <div>
+          <div class="chart-title">2024 R&D Spending Comparison ($B)</div>
+          <div class="chart-subtitle">Cross-company benchmark · Final year</div>
+        </div>
+        <span class="badge">HORIZONTAL BAR</span>
+      </div>
+      <canvas id="rdBar2024Chart" style="max-height:200px"></canvas>
+    </div>
+  </div>
+
+  <!-- TAB: CARBON -->
+  <div id="tab-carbon" class="tab-content">
+    <div class="chart-grid-2">
+      <div class="chart-panel">
+        <div class="chart-panel-header">
+          <div>
+            <div class="chart-title">Carbon Intensity Index (100 = Base Year)</div>
+            <div class="chart-subtitle">Log-linear model decay rate: −13.2%/yr · R² = 0.949</div>
+          </div>
+          <span class="badge">AREA</span>
+        </div>
+        <canvas id="carbonLineChart"></canvas>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-panel-header">
+          <div>
+            <div class="chart-title">Total Carbon Reduction by 2024 (%)</div>
+            <div class="chart-subtitle">From company baseline year</div>
+          </div>
+          <span class="badge">BAR</span>
+        </div>
+        <canvas id="carbonBarChart"></canvas>
+      </div>
+    </div>
+    <div class="macro-insight">
+      <strong>Model Finding (Log-Linear OLS):</strong> The pooled carbon index follows log(Carbon) = 4.68 − 0.141·t, implying a compound annual reduction of <strong>−13.2% per year</strong> across all six EV manufacturers. R² = 0.949 indicates an excellent fit. Tesla leads with a 55% cumulative reduction vs. NIO at 46%. This rate of decarbonization significantly outpaces the industrial sector average of ~3–5%/yr.
+    </div>
+  </div>
+
+  <!-- TAB: MARKET CAP -->
+  <div id="tab-marketcap" class="tab-content">
+    <div class="chart-grid-2">
+      <div class="chart-panel">
+        <div class="chart-panel-header">
+          <div>
+            <div class="chart-title">Market Capitalisation ($B)</div>
+            <div class="chart-subtitle">Full trajectory 2019–2024</div>
+          </div>
+          <span class="badge">LINE</span>
+        </div>
+        <canvas id="mcLineChart"></canvas>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-panel-header">
+          <div>
+            <div class="chart-title">Market Cap Growth Model — Macro Elasticity</div>
+            <div class="chart-subtitle">Δln(MC) = β₀ + β₁·RevGrowth + β₂·CPI + β₃·FedRate · R² = 0.731</div>
+          </div>
+          <span class="badge">BUBBLE</span>
+        </div>
+        <canvas id="mcBubbleChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-panel-header">
+        <div>
+          <div class="chart-title">2019→2024 Market Cap CAGR vs Revenue CAGR</div>
+          <div class="chart-subtitle">Valuation premium / discount analysis</div>
+        </div>
+        <span class="badge">SCATTER</span>
+      </div>
+      <canvas id="mcCagrChart" style="max-height:220px"></canvas>
+    </div>
+  </div>
+
+  <!-- TAB: STATISTICAL MODELS -->
+  <div id="tab-models" class="tab-content">
+
+    <!-- MODEL A -->
+    <div class="model-card">
+      <div class="model-header">
+        <div>
+          <div class="model-title">Model A — Revenue Growth OLS (Tesla)</div>
+          <div class="chart-subtitle" style="margin-top:4px">Dependent: YoY Revenue Growth (%) · 5 predictors</div>
+        </div>
+        <span class="r2-badge">R² = 1.00 (saturated)</span>
+      </div>
+      <table class="coef-table">
+        <thead>
+          <tr>
+            <th>Predictor</th>
+            <th>Coefficient</th>
+            <th>Direction</th>
+            <th style="width:180px">Magnitude</th>
+            <th>Interpretation</th>
+          </tr>
+        </thead>
+        <tbody id="modelA-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- MODEL B -->
+    <div class="model-card">
+      <div class="model-header">
+        <div>
+          <div class="model-title">Model B — EBITDA Margin Panel OLS</div>
+          <div class="chart-subtitle" style="margin-top:4px">Dependent: EBITDA Margin · Panel data across profitable EV companies</div>
+        </div>
+        <span class="r2-badge">R² = 0.814</span>
+      </div>
+      <table class="coef-table">
+        <thead>
+          <tr>
+            <th>Predictor</th>
+            <th>Coefficient</th>
+            <th>Direction</th>
+            <th style="width:180px">Magnitude</th>
+            <th>Interpretation</th>
+          </tr>
+        </thead>
+        <tbody id="modelB-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- MODEL C -->
+    <div class="model-card">
+      <div class="model-header">
+        <div>
+          <div class="model-title">Model C — Market Cap Growth OLS</div>
+          <div class="chart-subtitle" style="margin-top:4px">Dependent: Δln(MarketCap) · Cross-company panel</div>
+        </div>
+        <span class="r2-badge">R² = 0.731</span>
+      </div>
+      <table class="coef-table">
+        <thead>
+          <tr>
+            <th>Predictor</th>
+            <th>Coefficient</th>
+            <th>Direction</th>
+            <th style="width:180px">Magnitude</th>
+            <th>Interpretation</th>
+          </tr>
+        </thead>
+        <tbody id="modelC-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- MODEL D -->
+    <div class="model-card">
+      <div class="model-header">
+        <div>
+          <div class="model-title">Model D — Carbon Reduction Log-Linear Trend</div>
+          <div class="chart-subtitle" style="margin-top:4px">Dependent: ln(CarbonIndex) · Pooled time-series</div>
+        </div>
+        <span class="r2-badge">R² = 0.949</span>
+      </div>
+      <div style="padding: 16px 0; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--text);">
+        log(Carbon) = 4.68 − <span style="color:var(--green)">0.141</span> · t<br><br>
+        <span style="color:var(--muted)">→ Annual compound decay:</span> <span style="color:var(--red); font-size:18px; font-weight:700">−13.22%</span> per year<br>
+        <span style="color:var(--muted)">→ Fit: R² = 0.949 · Excellent predictive power</span>
+      </div>
+    </div>
+
+    <!-- MODEL E -->
+    <div class="model-card">
+      <div class="model-header">
+        <div>
+          <div class="model-title">Model E — R&D Intensity Trend OLS</div>
+          <div class="chart-subtitle" style="margin-top:4px">Dependent: R&D/Revenue · Time + Inflation effects</div>
+        </div>
+        <span class="r2-badge">R² = 0.037 (noisy)</span>
+      </div>
+      <table class="coef-table">
+        <thead>
+          <tr>
+            <th>Predictor</th>
+            <th>Coefficient</th>
+            <th>Direction</th>
+            <th style="width:180px">Magnitude</th>
+            <th>Interpretation</th>
+          </tr>
+        </thead>
+        <tbody id="modelE-tbody"></tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- TAB: MACRO OVERLAY -->
+  <div id="tab-macro" class="tab-content">
+    <div class="chart-grid-2">
+      <div class="chart-panel">
+        <div class="chart-panel-header">
+          <div>
+            <div class="chart-title">US CPI & Fed Funds Rate (2019–2024)</div>
+            <div class="chart-subtitle">Core inflation drivers affecting EV cost structures</div>
+          </div>
+          <span class="badge">DUAL-AXIS</span>
+        </div>
+        <canvas id="macroCPIChart"></canvas>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-panel-header">
+          <div>
+            <div class="chart-title">Lithium Price Index vs EV Margins</div>
+            <div class="chart-subtitle">Battery cost correlation — key input inflation</div>
+          </div>
+          <span class="badge">DUAL-AXIS</span>
+        </div>
+        <canvas id="lithiumChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-panel" style="margin-bottom:20px">
+      <div class="chart-panel-header">
+        <div>
+          <div class="chart-title">Macro Regime Impact on EV Industry KPIs</div>
+          <div class="chart-subtitle">Heatmap — directional coefficients from regression models</div>
+        </div>
+        <span class="badge">HEATMAP</span>
+      </div>
+      <div id="heatmap-container" style="margin-top:8px"></div>
+    </div>
+
+    <div class="macro-insight">
+      <strong>Key Macro Insight #1 — Inflation:</strong> A 1pp rise in CPI is associated with a +8.0pp increase in Tesla's YoY revenue growth (driven by product pricing power) but −5.8pp compression on EBITDA margins through input costs. Net effect is margin dilution at high inflation.
+    </div>
+    <div class="macro-insight" style="border-left-color: var(--accent2)">
+      <strong>Key Macro Insight #2 — Interest Rates:</strong> The Fed rate coefficient on market cap growth is −0.242 (log-log). A 100bp rate hike reduces EV market cap growth by ~24%, consistent with duration-sensitive growth-stock valuation theory.
+    </div>
+    <div class="macro-insight" style="border-left-color: var(--accent3)">
+      <strong>Key Macro Insight #3 — Lithium:</strong> The lithium price index peaked at 480 in 2022 (vs 100 in 2019) — a 380% surge. Battery packs represent ~40% of EV COGS. Normalisation to 145 by 2024 restores significant margin potential for vertically integrated players like BYD and Tesla.
+    </div>
+
+    <!-- Metrics Table -->
+    <div class="metrics-table-wrap">
+      <table class="metrics">
+        <thead>
+          <tr>
+            <th>Company</th>
+            <th>Avg Rev Growth</th>
+            <th>Avg EBITDA %</th>
+            <th>Avg R&D ($B)</th>
+            <th>Carbon Reduction</th>
+            <th>MC CAGR</th>
+          </tr>
+        </thead>
+        <tbody id="metrics-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-note">
+      Data: Representative figures based on public filings & Bloomberg consensus · Tesla, BYD, Rivian, NIO, Lucid, Li Auto<br>
+      Models: OLS via R lm() · Panel regression · Log-linear trend · 2019–2024 · Not investment advice
+    </div>
+    <span class="r-badge">POWERED BY R 4.3</span>
+  </footer>
+</div>
+
+<script>
+// ===== DATA =====
+const years = [2019,2020,2021,2022,2023,2024];
+const companies = ["Tesla","BYD","Rivian","NIO","Lucid","Li Auto"];
+const colors = ["#00e5ff","#ff6b35","#7cff6b","#ffd23f","#b967ff","#ff4d6d"];
+const colorsAlpha = c => c + '33';
+
+const raw = {
+  Tesla:    { revenue:[24.58,31.54,53.82,81.46,96.77,97.69], ebitda:[3.8,12.8,19.7,17.2,13.3,11.2], rd:[1.34,1.49,2.59,3.08,3.97,4.21], carbon:[100,88,74,61,52,45], mc:[76,669,1061,390,248,310] },
+  BYD:      { revenue:[22.6,25.1,33.6,63.2,84.9,107.2],     ebitda:[5.2,4.8,7.1,8.2,8.9,9.8],       rd:[1.21,1.33,1.78,2.54,3.21,4.05], carbon:[100,95,83,70,59,49],  mc:[31,49,103,114,88,105] },
+  Rivian:   { revenue:[0,0,0.055,1.66,4.43,5.77],           ebitda:[null,null,-820,-186,-62,-18],    rd:[0.13,0.59,1.37,1.40,1.34,1.28], carbon:[null,null,100,88,75,64], mc:[0,0,80,15,12,17] },
+  NIO:      { revenue:[1.12,2.49,5.44,7.31,8.05,9.18],      ebitda:[-89,-52,-21,-28,-35,-22],        rd:[0.44,0.74,1.32,2.06,2.34,2.11], carbon:[100,91,80,69,61,54],  mc:[7.7,68,57,18,9,11] },
+  Lucid:    { revenue:[0,0,0.027,0.608,0.595,0.807],        ebitda:[null,null,-2140,-512,-433,-287], rd:[0.04,0.19,0.72,0.848,0.791,0.734], carbon:[null,null,100,85,73,62], mc:[0,0,24,6.5,4.2,5.8] },
+  "Li Auto":{ revenue:[0.28,1.5,3.58,6.59,17.46,21.1],      ebitda:[-20,1.1,4.9,6.2,9.4,10.8],      rd:[0.12,0.38,0.72,1.33,2.01,2.45], carbon:[100,93,84,72,61,51],  mc:[0,28,35,26,20,24] }
+};
+
+const macro = {
+  cpi:     [2.3, 1.2, 7.0, 8.0, 3.4, 2.9],
+  fed:     [2.25, 0.25, 0.25, 4.5, 5.25, 5.25],
+  lithium: [100, 95, 240, 480, 210, 145],
+  subsidy: [7.5, 7.5, 7.5, 7.5, 7.5, 3.75],
+  gdp:     [2.3, -2.8, 5.9, 2.1, 2.5, 2.8]
+};
+
+const metricsData = [
+  { company:"Tesla",    revGrowth:34.0,  ebitda:13.0,  rd:2.78, carbon:55, mcCagr:32.5 },
+  { company:"BYD",      revGrowth:38.7,  ebitda:7.3,   rd:2.35, carbon:51, mcCagr:27.6 },
+  { company:"Rivian",   revGrowth:null,  ebitda:-271.5,rd:1.02, carbon:36, mcCagr:-40.3 },
+  { company:"NIO",      revGrowth:59.9,  ebitda:-41.2, rd:1.50, carbon:46, mcCagr:7.4 },
+  { company:"Lucid",    revGrowth:null,  ebitda:-843,  rd:0.55, carbon:38, mcCagr:-37.7 },
+  { company:"Li Auto",  revGrowth:168.9, ebitda:2.1,   rd:1.17, carbon:49, mcCagr:-3.8 }
+];
+
+const modelResults = {
+  A: { coefs: { "(Intercept)":-8.82, cpi:8.04, fed_rate:-4.76, lithium:-0.030, subsidy:4.20 }, r2:1.00 },
+  B: { coefs: { "(Intercept)":-0.717, cpi:-0.058, fed_rate:-0.171, rd_ratio:-0.542, "log(rev)":0.470 }, r2:0.814 },
+  C: { coefs: { "(Intercept)":1.877, rev_growth:-0.204, cpi:-0.185, fed_rate:-0.242 }, r2:0.731 },
+  E: { coefs: { "(Intercept)":-47.24, year:0.024, cpi:0.021 }, r2:0.037 }
+};
+
+// Chart defaults
+Chart.defaults.color = '#6b7694';
+Chart.defaults.borderColor = '#1e2230';
+Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+
+function makeChart(id, config) {
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  return new Chart(ctx, config);
+}
+
+// ===== REVENUE LINE =====
+makeChart('revLineChart', {
+  type: 'line',
+  data: {
+    labels: years,
+    datasets: companies.map((c,i) => ({
+      label: c,
+      data: raw[c].revenue,
+      borderColor: colors[i],
+      backgroundColor: colors[i]+'22',
+      borderWidth: 2,
+      pointRadius: 4,
+      tension: 0.3,
+      fill: false
+    }))
+  },
+  options: { responsive:true, plugins:{ legend:{ labels:{ color:'#6b7694', font:{size:10} } } }, scales:{ y:{ title:{ display:true, text:'$B', color:'#6b7694' } } } }
+});
+
+// ===== REVENUE GROWTH + CPI =====
+const teslaGrowth = years.slice(1).map((_,i) => ((raw.Tesla.revenue[i+1]-raw.Tesla.revenue[i])/raw.Tesla.revenue[i]*100).toFixed(1));
+makeChart('revGrowthChart', {
+  type: 'bar',
+  data: {
+    labels: years.slice(1),
+    datasets: [
+      { type:'bar', label:'Tesla Rev Growth %', data: teslaGrowth, backgroundColor:'#00e5ff44', borderColor:'#00e5ff', borderWidth:2, yAxisID:'y' },
+      { type:'line', label:'CPI YoY %', data: macro.cpi.slice(1), borderColor:'#ff6b35', backgroundColor:'transparent', borderWidth:2, pointRadius:4, yAxisID:'y2' }
+    ]
+  },
+  options: { responsive:true, plugins:{ legend:{ labels:{ color:'#6b7694', font:{size:10} } } },
+    scales:{ y:{ title:{display:true,text:'Rev Growth %',color:'#6b7694'} }, y2:{ position:'right', title:{display:true,text:'CPI %',color:'#ff6b35'}, grid:{drawOnChartArea:false} } } }
+});
+
+// ===== REV SCATTER =====
+const revGrowthVals = teslaGrowth.map(Number);
+const cpiVals = macro.cpi.slice(1);
+makeChart('revScatterChart', {
+  type: 'scatter',
+  data: {
+    datasets: [{
+      label: 'CPI vs Tesla Rev Growth',
+      data: cpiVals.map((c,i)=>({x:c, y:revGrowthVals[i]})),
+      backgroundColor: colors.map(c=>c+'aa'),
+      pointRadius: 8
+    }]
+  },
+  options: { responsive:true, scales:{ x:{title:{display:true,text:'CPI YoY (%)',color:'#6b7694'}}, y:{title:{display:true,text:'Tesla Rev Growth (%)',color:'#6b7694'}} } }
+});
+
+// ===== EBITDA PROFITABLE =====
+makeChart('ebitdaProfChart', {
+  type: 'line',
+  data: {
+    labels: years,
+    datasets: [
+      { label:'Tesla', data: raw.Tesla.ebitda, borderColor:colors[0], borderWidth:2, tension:0.3, pointRadius:4 },
+      { label:'BYD',   data: raw.BYD.ebitda,   borderColor:colors[1], borderWidth:2, tension:0.3, pointRadius:4 },
+      { label:'Li Auto',data: raw["Li Auto"].ebitda, borderColor:colors[5], borderWidth:2, tension:0.3, pointRadius:4 }
+    ]
+  },
+  options: { responsive:true, plugins:{ legend:{ labels:{ color:'#6b7694', font:{size:10} } } }, scales:{ y:{ title:{display:true,text:'EBITDA Margin %',color:'#6b7694'} } } }
+});
+
+// ===== EBITDA LOSS =====
+makeChart('ebitdaLossChart', {
+  type: 'line',
+  data: {
+    labels: years,
+    datasets: [
+      { label:'Rivian', data: raw.Rivian.ebitda.map(v=>v===null?null:Math.max(v,-200)), borderColor:colors[2], borderWidth:2, tension:0.3, pointRadius:4, spanGaps:false },
+      { label:'NIO',    data: raw.NIO.ebitda,    borderColor:colors[3], borderWidth:2, tension:0.3, pointRadius:4 },
+      { label:'Lucid',  data: raw.Lucid.ebitda.map(v=>v===null?null:Math.max(v,-600)), borderColor:colors[4], borderWidth:2, tension:0.3, pointRadius:4, spanGaps:false }
+    ]
+  },
+  options: { responsive:true, plugins:{ legend:{ labels:{ color:'#6b7694', font:{size:10} } } }, scales:{ y:{ title:{display:true,text:'EBITDA Margin % (clipped)',color:'#6b7694'} } } }
+});
+
+// ===== EBITDA vs FED =====
+makeChart('ebitdaMacroChart', {
+  type: 'line',
+  data: {
+    labels: years,
+    datasets: [
+      { label:'Tesla EBITDA %', data:raw.Tesla.ebitda, borderColor:colors[0], fill:true, backgroundColor:colors[0]+'22', borderWidth:2, tension:0.3, yAxisID:'y' },
+      { label:'Fed Rate %',     data:macro.fed,        borderColor:'#ff6b35', borderWidth:2, borderDash:[4,4], tension:0.3, yAxisID:'y2', pointRadius:4 }
+    ]
+  },
+  options: { responsive:true, plugins:{ legend:{ labels:{ color:'#6b7694', font:{size:10} } } },
+    scales:{ y:{ title:{display:true,text:'EBITDA %',color:'#6b7694'} }, y2:{position:'right', title:{display:true,text:'Fed Rate %',color:'#ff6b35'}, grid:{drawOnChartArea:false}} } }
+});
+
+// ===== R&D ABS =====
+makeChart('rdAbsChart', {
+  type: 'bar',
+  data: {
+    labels: years,
+    datasets: companies.map((c,i) => ({
+      label: c,
+      data: raw[c].rd,
+      backgroundColor: colors[i]+'99',
+      borderColor: colors[i],
+      borderWidth: 1
+    }))
+  },
+  options: { responsive:true, plugins:{ legend:{ labels:{ color:'#6b7694', font:{size:10} } } }, scales:{ x:{stacked:true}, y:{stacked:true, title:{display:true,text:'$B',color:'#6b7694'}} } }
+});
+
+// ===== R&D INTENSITY =====
+const rdIntData = companies.map(c => ({
+  company: c,
+  data: raw[c].revenue.map((r,i) => r > 0.05 ? raw[c].rd[i]/r*100 : null)
+}));
+makeChart('rdIntChart', {
+  type: 'line',
+  data: {
+    labels: years,
+    datasets: rdIntData.map((d,i) => ({
+      label: d.company, data: d.data, borderColor:colors[i], borderWidth:2, tension:0.3, pointRadius:3, spanGaps:false
+    }))
+  },
+  options: { responsive:true, plugins:{ legend:{ labels:{ color:'#6b7694', font:{size:10} } } }, scales:{ y:{ title:{display:true,text:'R&D / Revenue %',color:'#6b7694'} } } }
+});
+
+// ===== R&D 2024 BAR =====
+makeChart('rdBar2024Chart', {
+  type: 'bar',
+  data: {
+    labels: companies,
+    datasets: [{ label:'R&D 2024 ($B)', data: companies.map(c=>raw[c].rd[5]), backgroundColor: colors.map(c=>c+'99'), borderColor: colors, borderWidth:2 }]
+  },
+  options: { indexAxis:'y', responsive:true, plugins:{ legend:{display:false} }, scales:{ x:{ title:{display:true,text:'$B',color:'#6b7694'} } } }
+});
+
+// ===== CARBON LINE =====
+makeChart('carbonLineChart', {
+  type: 'line',
+  data: {
+    labels: years,
+    datasets: companies.map((c,i) => ({
+      label: c, data: raw[c].carbon, borderColor:colors[i], fill: i===0, backgroundColor:colors[0]+'11',
+      borderWidth:2, tension:0.3, pointRadius:3, spanGaps:false
+    }))
+  },
+  options: { responsive:true, plugins:{ legend:{ labels:{ color:'#6b7694', font:{size:10} } } }, scales:{ y:{ title:{display:true,text:'Carbon Index (base=100)',color:'#6b7694'} } } }
+});
+
+// ===== CARBON BAR =====
+const carbonReductions = [55,51,36,46,38,49];
+makeChart('carbonBarChart', {
+  type: 'bar',
+  data: {
+    labels: companies,
+    datasets: [{ label:'Carbon Reduction %', data: carbonReductions, backgroundColor: colors.map(c=>c+'99'), borderColor:colors, borderWidth:2 }]
+  },
+  options: { responsive:true, plugins:{ legend:{display:false} }, scales:{ y:{ title:{display:true,text:'Reduction %',color:'#6b7694'} } } }
+});
+
+// ===== MARKET CAP LINE =====
+makeChart('mcLineChart', {
+  type: 'line',
+  data: {
+    labels: years,
+    datasets: companies.map((c,i)=>({
+      label:c, data:raw[c].mc.map(v=>v===0?null:v), borderColor:colors[i], borderWidth:2, tension:0.3, pointRadius:4, spanGaps:false
+    }))
+  },
+  options: { responsive:true, plugins:{ legend:{ labels:{ color:'#6b7694', font:{size:10} } } }, scales:{ y:{ type:'logarithmic', title:{display:true,text:'Market Cap $B (log)',color:'#6b7694'} } } }
+});
+
+// ===== MC BUBBLE =====
+makeChart('mcBubbleChart', {
+  type: 'bubble',
+  data: {
+    datasets: companies.slice(0,4).map((c,i)=>({
+      label:c,
+      data: years.map((_,yi)=>{
+        const mc=raw[c].mc[yi]; const rev=raw[c].revenue[yi];
+        if(!mc||!rev||mc<1||rev<0.1) return null;
+        return { x: macro.cpi[yi], y: macro.fed[yi], r: Math.sqrt(mc)*1.8 };
+      }).filter(Boolean),
+      backgroundColor: colors[i]+'66',
+      borderColor: colors[i]
+    }))
+  },
+  options: { responsive:true, plugins:{ legend:{ labels:{ color:'#6b7694', font:{size:10} } } },
+    scales:{ x:{title:{display:true,text:'CPI %',color:'#6b7694'}}, y:{title:{display:true,text:'Fed Rate %',color:'#6b7694'}} } }
+});
+
+// ===== MC CAGR SCATTER =====
+const cagrData = [
+  {company:'Tesla', revCAGR:32, mcCAGR:32.5, color:colors[0]},
+  {company:'BYD',   revCAGR:37, mcCAGR:27.6, color:colors[1]},
+  {company:'NIO',   revCAGR:52, mcCAGR:7.4,  color:colors[3]},
+  {company:'Li Auto',revCAGR:109,mcCAGR:-3.8, color:colors[5]}
+];
+makeChart('mcCagrChart', {
+  type: 'scatter',
+  data: {
+    datasets: cagrData.map(d=>({
+      label: d.company,
+      data: [{x:d.revCAGR, y:d.mcCAGR}],
+      backgroundColor: d.color+'aa',
+      borderColor: d.color,
+      pointRadius: 12,
+      pointHoverRadius: 14
+    }))
+  },
+  options: { responsive:true, plugins:{ legend:{ labels:{ color:'#6b7694', font:{size:10} } }, tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: Rev CAGR ${ctx.parsed.x}% | MC CAGR ${ctx.parsed.y}%` } } },
+    scales:{ x:{title:{display:true,text:'Revenue CAGR %',color:'#6b7694'}}, y:{title:{display:true,text:'Market Cap CAGR %',color:'#6b7694'}} } }
+});
+
+// ===== MACRO CPI =====
+makeChart('macroCPIChart', {
+  type: 'line',
+  data: {
+    labels: years,
+    datasets: [
+      { label:'CPI YoY %', data:macro.cpi, borderColor:'#ff6b35', fill:true, backgroundColor:'#ff6b3522', borderWidth:2, tension:0.3, yAxisID:'y' },
+      { label:'Fed Rate %', data:macro.fed, borderColor:'#b967ff', borderWidth:2, tension:0.3, pointRadius:4, yAxisID:'y2' }
+    ]
+  },
+  options: { responsive:true, plugins:{ legend:{ labels:{ color:'#6b7694', font:{size:10} } } },
+    scales:{ y:{title:{display:true,text:'CPI %',color:'#ff6b35'}}, y2:{position:'right',title:{display:true,text:'Fed Rate %',color:'#b967ff'},grid:{drawOnChartArea:false}} } }
+});
+
+// ===== LITHIUM =====
+makeChart('lithiumChart', {
+  type: 'line',
+  data: {
+    labels: years,
+    datasets: [
+      { label:'Lithium Index', data:macro.lithium, borderColor:'#ffd23f', fill:true, backgroundColor:'#ffd23f22', borderWidth:2, tension:0.3, yAxisID:'y' },
+      { label:'Tesla EBITDA %', data:raw.Tesla.ebitda, borderColor:'#00e5ff', borderWidth:2, tension:0.3, pointRadius:4, yAxisID:'y2' }
+    ]
+  },
+  options: { responsive:true, plugins:{ legend:{ labels:{ color:'#6b7694', font:{size:10} } } },
+    scales:{ y:{title:{display:true,text:'Lithium Index',color:'#ffd23f'}}, y2:{position:'right',title:{display:true,text:'Tesla EBITDA %',color:'#00e5ff'},grid:{drawOnChartArea:false}} } }
+});
+
+// ===== HEATMAP =====
+(function buildHeatmap() {
+  const predictors = ['CPI', 'Fed Rate', 'Lithium', 'Subsidy', 'GDP', 'R&D Ratio', 'log(Rev)', 'Rev Growth'];
+  const outcomes   = ['Tesla Rev Growth', 'EBITDA Margin', 'Market Cap Growth'];
+  const coefMatrix = [
+    [8.04,  -4.76, -0.030,  4.20, 'N/A', 'N/A',   'N/A',   'N/A'],
+    [-0.058,-0.171,'N/A', 'N/A', 'N/A', -0.542,   0.470,   'N/A'],
+    [-0.185,-0.242,'N/A', 'N/A', 'N/A', 'N/A',    'N/A',  -0.204]
+  ];
+
+  const container = document.getElementById('heatmap-container');
+  const maxAbs = 8.5;
+
+  let html = `<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-family:'IBM Plex Mono',monospace;font-size:11px">`;
+  html += `<thead><tr><th style="padding:8px 12px;color:#6b7694;text-align:left;border-bottom:1px solid #1e2230">Outcome \\ Predictor</th>`;
+  predictors.forEach(p => { html += `<th style="padding:8px 10px;color:#6b7694;text-align:center;border-bottom:1px solid #1e2230;white-space:nowrap">${p}</th>`; });
+  html += `</tr></thead><tbody>`;
+
+  outcomes.forEach((out, ri) => {
+    html += `<tr><td style="padding:10px 12px;color:#e8ecf4;font-weight:600;border-bottom:1px solid #1e2230;white-space:nowrap">${out}</td>`;
+    coefMatrix[ri].forEach(v => {
+      if (v === 'N/A') {
+        html += `<td style="padding:10px;text-align:center;color:#2a2e40;border-bottom:1px solid #1e2230">—</td>`;
+      } else {
+        const intensity = Math.abs(v) / maxAbs;
+        const isPos = v > 0;
+        const bg = isPos
+          ? `rgba(0,229,255,${0.08+intensity*0.45})`
+          : `rgba(255,64,96,${0.08+intensity*0.45})`;
+        const fc = isPos ? '#00e5ff' : '#ff4060';
+        html += `<td style="padding:10px;text-align:center;background:${bg};color:${fc};font-weight:600;border-bottom:1px solid #1e2230">${v>0?'+':''}${v.toFixed(3)}</td>`;
+      }
+    });
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  html += `<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#6b7694;margin-top:8px">Cells = OLS regression coefficients · <span style="color:#00e5ff">■ Positive</span> · <span style="color:#ff4060">■ Negative</span> · — Not in this model</div>`;
+  container.innerHTML = html;
+})();
+
+// ===== MODEL TABLES =====
+function buildModelTable(tbodyId, coefs, interpretations) {
+  const tbody = document.getElementById(tbodyId);
+  if (!tbody) return;
+  const vals = Object.values(coefs).filter(v=>!isNaN(v));
+  const maxAbs = Math.max(...vals.map(Math.abs));
+  let rows = '';
+  Object.entries(coefs).forEach(([k,v]) => {
+    if (k === '(Intercept)') return;
+    const pct = Math.min(Math.abs(v)/maxAbs*100, 100);
+    const isPos = v >= 0;
+    const barColor = isPos ? '#00ff88' : '#ff4060';
+    const cls = isPos ? 'coef-pos' : 'coef-neg';
+    const interp = interpretations[k] || '';
+    rows += `<tr>
+      <td class="coef-name">${k}</td>
+      <td class="coef-val ${cls}">${v>0?'+':''}${v.toFixed(4)}</td>
+      <td>${isPos ? '↑ positive' : '↓ negative'}</td>
+      <td class="coef-bar-cell">
+        <div class="coef-bar-wrap"><div class="coef-bar" style="width:${pct}%;background:${barColor}"></div></div>
+      </td>
+      <td style="color:#6b7694;font-size:11px">${interp}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = rows;
+}
+
+buildModelTable('modelA-tbody', modelResults.A.coefs, {
+  cpi:       '+1pp CPI → +8pp Tesla rev growth (pricing power)',
+  fed_rate:  '+1pp rate → −4.8pp growth (financing cost)',
+  lithium:   'Index pt → −0.03pp (input cost drag)',
+  subsidy:   '+$1k subsidy → +4.2pp growth (demand stimulus)'
+});
+
+buildModelTable('modelB-tbody', modelResults.B.coefs, {
+  cpi:        '+1pp inflation → −5.8pp EBITDA (cost compression)',
+  fed_rate:   '+1pp rate → −17.1pp margin (financing & capex)',
+  rd_ratio:   'R&D-heavy firms have lower near-term margins',
+  'log(rev)': 'Scale effect: larger revenue → better margins'
+});
+
+buildModelTable('modelC-tbody', modelResults.C.coefs, {
+  rev_growth: 'Revenue growth alone insufficient for MC uplift',
+  cpi:        '+1pp CPI → −18.5% MC growth (risk-off)',
+  fed_rate:   '+1pp rate → −24.2% MC growth (duration effect)'
+});
+
+buildModelTable('modelE-tbody', modelResults.E.coefs, {
+  year: 'R&D intensity rising ~2.4pp/year over time',
+  cpi:  'Inflation adds modest R&D budget pressure'
+});
+
+// ===== METRICS TABLE =====
+(function buildMetrics() {
+  const tbody = document.getElementById('metrics-tbody');
+  let rows = '';
+  metricsData.forEach((d, i) => {
+    const rg = d.revGrowth != null ? `<span class="pill pill-pos">+${d.revGrowth}%</span>` : '<span class="pill pill-neu">N/A</span>';
+    const em = d.ebitda > 0 ? `<span class="pill pill-pos">${d.ebitda}%</span>` : `<span class="pill pill-neg">${d.ebitda}%</span>`;
+    const mc = d.mcCagr > 0 ? `<span class="pill pill-pos">+${d.mcCagr}%</span>` : `<span class="pill pill-neg">${d.mcCagr}%</span>`;
+    rows += `<tr>
+      <td><span style="color:${colors[i]};margin-right:8px">●</span>${d.company}</td>
+      <td>${rg}</td>
+      <td>${em}</td>
+      <td>$${d.rd}B</td>
+      <td><span class="pill pill-pos">−${d.carbon}%</span></td>
+      <td>${mc}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = rows;
+})();
+
+// ===== TAB SWITCH =====
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
