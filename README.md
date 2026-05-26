@@ -1,17 +1,29 @@
 EV Industry Macroeconomic & Inflation Impact Analysis
+
+
 A comprehensive statistical modelling framework built in R to quantify how macroeconomic forces — inflation, interest rates, lithium price shocks, and fiscal policy — shape the financial performance and market valuation of the world's leading electric vehicle companies.
+
 Overview
 This project develops and interprets five distinct regression models across a panel of six major EV manufacturers — Tesla, BYD, Rivian, NIO, Lucid, and Li Auto — spanning 2019 to 2024. The analysis sits at the intersection of macroeconomics, corporate finance, and sustainability metrics, asking a single central question: how exposed is the EV industry to the macroeconomic environment, and which companies are most resilient?
+
 The 2021–2023 period presented one of the most challenging macro backdrops in decades: US CPI peaked at 8% in 2022, the Fed Funds Rate surged from near-zero to 5.25%, and lithium carbonate prices spiked 380% before collapsing. Understanding how these shocks transmitted into revenue growth, margin compression, R&D allocation, carbon performance, and equity valuations is the core motivation behind this work.
+
 What's Inside
+
 The repository contains a self-contained R script that generates all models from synthetic but representative data, exports results as structured JSON, and powers a fully interactive HTML dashboard. No external API keys or paid data subscriptions are required.
+
 Five statistical models are implemented:
 
 Model A — Revenue Growth OLS: Regresses Tesla's year-on-year revenue growth against CPI, the Fed Funds Rate, the lithium price index, EV subsidy levels, and GDP growth. Surfaces the pricing power effect of inflation (+8pp revenue per 1pp CPI) and the financing-cost drag of rate hikes (−4.8pp per 1pp Fed Rate).
+
 Model B — EBITDA Margin Panel OLS: A pooled panel model across profitable EV companies linking margins to inflation, interest rates, R&D intensity, and revenue scale. Achieves R² = 0.814, confirming that macro variables explain the majority of margin variation. The Fed Rate coefficient (−0.171) is the single most destructive macro factor on profitability.
+
 Model C — Market Cap Growth OLS: Models log-differenced market capitalisation as a function of revenue growth, CPI, and the Fed Rate. R² = 0.731. A 1pp rate increase is associated with a 24.2% decline in EV market cap growth — consistent with the theoretical duration sensitivity of long-horizon growth equities.
+
 Model D — Carbon Reduction Log-Linear Trend: Fits a pooled log-linear time trend to the carbon intensity indices of all six companies. Estimates a compound annual decarbonisation rate of −13.2% per year with an R² of 0.949 — a statistically clean result that substantially outpaces the industrial sector average of 3–5%/yr.
+
 Model E — R&D Intensity Trend OLS: Examines whether R&D spending as a share of revenue is rising over time and whether inflation exerts upward pressure on R&D budgets. The low R² (0.037) reflects genuine cross-company heterogeneity rather than model failure.
 
 Interactive Dashboard
-The HTML dashboard (ev_macro_dashboard.html) requires no server — open it directly in any browser. It features seven tabbed views: Revenue & Growth, EBITDA Margins, R&D Spending, Carbon Metrics, Market Cap, Statistical Models, and a Macro Overlay heatmap showing coefficient signs and magnitudes across all predictors and outcomes simultaneously.
+
+\The HTML dashboard (ev_macro_dashboard.html) requires no server — open it directly in any browser. It features seven tabbed views: Revenue & Growth, EBITDA Margins, R&D Spending, Carbon Metrics, Market Cap, Statistical Models, and a Macro Overlay heatmap showing coefficient signs and magnitudes across all predictors and outcomes simultaneously.
